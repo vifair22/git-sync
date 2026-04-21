@@ -13,6 +13,7 @@ credentials.txt
 .env
 cache/
 state.json
+src/git_sync/_version.py
 README.md
 Manual.md
 config.toml.example

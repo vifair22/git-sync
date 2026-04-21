@@ -25,10 +25,12 @@ COPY LICENSE pyproject.toml release_version ./
 COPY scripts/ scripts/
 COPY src/ src/
 
-# Editable-free install (no bind back to /opt/git-sync at runtime), then stamp
-# the full version string into src/git_sync/_version.py.
-RUN pip install --no-cache-dir . \
-    && python scripts/stamp_version.py release
+# Stamp the version BEFORE installing so the generated _version.py is baked
+# into the wheel at install time. Otherwise the installed package in
+# site-packages captures whatever _version.py was present when src/ was
+# copied in (the host's stale stamp, or nothing at all).
+RUN python scripts/stamp_version.py release \
+    && pip install --no-cache-dir .
 
 RUN mkdir -p /etc/git-sync /var/lib/git-sync/cache \
     && chown -R git-sync:git-sync /etc/git-sync /var/lib/git-sync
