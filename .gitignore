@@ -1,0 +1,25 @@
+# Secrets
+credentials.txt
+.env
+
+# Runtime state and caches
+state.json
+cache/
+deploy/
+
+# Build-time generated
+src/git_sync/_version.py
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors
+.idea/
+.vscode/

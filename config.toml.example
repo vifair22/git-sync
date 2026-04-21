@@ -1,0 +1,67 @@
+# git-sync configuration example.
+# Copy to the path referenced by GIT_SYNC_CONFIG (default: /etc/git-sync/config.toml).
+# Secrets (GITLAB_TOKEN, GITHUB_TOKEN) come from environment variables only.
+
+[gitlab]
+url = "https://git.airies.net"
+# GITLAB_TOKEN must be set in the environment.
+
+[github]
+owner = "vifair22"
+# GITHUB_TOKEN must be set in the environment.
+
+[author]
+# Used as the commit author for profile README updates on both platforms.
+# Email should be verified on both GitLab and GitHub so the commits are
+# attributed to your account (contribution graph).
+name = "XxI0NICxX"
+email = "vifair22@gmail.com"
+
+[mirror]
+enabled = true
+# If set, repos containing any blob bigger than this (MB) will have their
+# history rewritten via git-filter-repo before being pushed to GitHub, which
+# sidesteps GitHub's 100 MB per-file ceiling. Rewriting diverges commit SHAs
+# on the GitHub side only. Leave unset (or omit) for strict byte-for-byte
+# mirroring.
+# strip_blobs_larger_than_mb = 95
+# Skip any GitLab project whose first path segment matches one of these
+# groups. Also prevents any existing GitHub mirror that git-sync previously
+# created from being touched (no visibility flip).
+# exclude_groups = ["xbox"]
+# Mirror private GitLab projects to *private* GitHub repos. Useful for
+# populating the GitHub contribution graph with commits from private work.
+# Commits preserve their original author/date, so attribution works.
+# mirror_private_repos = true
+# When true, skip any project in the user's personal GitLab namespace
+# (namespace.kind == "user"). Group-owned projects are the only ones
+# considered for mirror. Pairs naturally with mirror_private_repos = true
+# when you want to mirror "real work" but not scratch/personal repos.
+# only_group_owned = true
+
+[profile]
+enabled = true
+top_n_languages = 8
+recent_activity_count = 20
+recent_repos_count = 5  # set to 0 to show all public repos
+# Full path of your profile README repo on GitLab (the GitLab equivalent of the
+# GitHub `<user>/<user>` convention). Must exist before running.
+gitlab_path = "vifair22/vifair22"
+# GitHub profile repo name; owner comes from [github].owner above.
+github_repo = "vifair22"
+github_disclaimer = """
+This profile mirrors my GitLab at https://git.airies.net/vifair22.
+These repos are read-only mirrors; head to GitLab for the source of truth.
+"""
+
+[paths]
+state = "/var/lib/git-sync/state.json"
+cache = "/var/lib/git-sync/cache"
+about = "/etc/git-sync/about.md"
+
+[schedule]
+mirror_interval_hours = 24
+profile_interval_hours = 24
+
+[logging]
+level = "INFO"

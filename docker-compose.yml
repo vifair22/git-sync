@@ -1,0 +1,26 @@
+# Canonical runtime invocation for git-sync.
+#
+# Layout expected on the host:
+#   deploy/config/config.toml        (copy of config.toml.example, edited)
+#   deploy/config/about.md           (your bio snippet)
+#   deploy/state/                    (state.json + cache/ are written here)
+#   .env                             (GITLAB_TOKEN, GITHUB_TOKEN)
+#
+# On Unraid, map those paths to wherever your appdata lives
+# (e.g. /mnt/user/appdata/git-sync/config and .../state).
+
+services:
+  git-sync:
+    build: .
+    image: git-sync:latest
+    container_name: git-sync
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      GITLAB_TOKEN: ${GITLAB_TOKEN:?set GITLAB_TOKEN in .env}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN in .env}
+      GIT_SYNC_CONFIG: /etc/git-sync/config.toml
+    volumes:
+      - ./deploy/config:/etc/git-sync:ro
+      - ./deploy/state:/var/lib/git-sync
+    command: ["run"]

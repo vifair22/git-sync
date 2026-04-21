@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-sync"
+description = "Mirror GitLab repos to GitHub and generate profile READMEs from GitLab activity."
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "vifair22", email = "vifair22@gmail.com" }]
+dynamic = ["version"]
+
+[project.scripts]
+git-sync = "git_sync.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-cov>=4.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { file = "release_version" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

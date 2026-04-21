@@ -1,0 +1,119 @@
+"""Tests for profile render."""
+from __future__ import annotations
+
+from git_sync.clients.gitlab import GitLabEvent
+from git_sync.profile import render
+from git_sync.profile.stats import LanguageStat, ProfileData, RecentRepo
+
+
+def _data(**over):
+    defaults = dict(
+        generated_at_utc="2026-04-20T12:00:00+00:00",
+        total_public_repos=3,
+        total_all_repos=5,
+        top_languages=[
+            LanguageStat(name="C", bytes=80_000, pct=80.0),
+            LanguageStat(name="Python", bytes=20_000, pct=20.0),
+        ],
+        recent_activity=[
+            GitLabEvent(
+                id=1, action_name="pushed to",
+                created_at="2026-04-20T11:00:00Z",
+                target_type="Branch", target_title="main", project_id=1,
+            ),
+        ],
+        recent_repos=[
+            RecentRepo(
+                path_with_namespace="alice/foo",
+                name="foo",
+                description="first",
+                last_activity_at="2026-04-20T11:00:00Z",
+            ),
+        ],
+    )
+    defaults.update(over)
+    return ProfileData(**defaults)
+
+
+def test_render_includes_sections():
+    out = render.render(
+        _data(), about_text="hello world",
+        gitlab_base_url="https://git.example.com",
+    )
+    assert "hello world" in out
+    assert "## Top languages" in out
+    # Languages rendered as shields.io badges, not a table.
+    assert "img.shields.io/static/v1" in out
+    assert "label=C" in out
+    assert "label=Python" in out
+    assert "message=80.0%25" in out  # URL-encoded
+    assert "## Recently updated" in out
+    assert "[alice/foo](https://git.example.com/alice/foo)" in out
+    assert "## Recent activity" in out
+    assert "pushed to: main" in out
+    assert "Generated 2026-04-20 " in out
+    assert "3 public / 5 total" in out
+
+
+def test_disclaimer_blockquoted_when_set():
+    out = render.render(
+        _data(), about_text="",
+        gitlab_base_url="https://git.example.com",
+        disclaimer="this is a mirror",
+    )
+    assert out.splitlines()[0] == "> this is a mirror"
+
+
+def test_no_disclaimer_by_default():
+    out = render.render(
+        _data(), about_text="hi",
+        gitlab_base_url="https://git.example.com",
+    )
+    assert not out.startswith(">")
+
+
+def test_empty_sections_omitted():
+    data = _data(top_languages=[], recent_activity=[], recent_repos=[])
+    out = render.render(
+        data, about_text="bio",
+        gitlab_base_url="https://git.example.com",
+    )
+    assert "## Top languages" not in out
+    assert "## Recently updated" not in out
+    assert "## Recent activity" not in out
+    assert "bio" in out
+    assert "Generated" in out
+
+
+def test_trailing_newline():
+    out = render.render(
+        _data(), about_text="",
+        gitlab_base_url="https://git.example.com",
+    )
+    assert out.endswith("\n")
+
+
+def test_gitlab_base_url_trailing_slash_stripped():
+    out = render.render(
+        _data(), about_text="",
+        gitlab_base_url="https://git.example.com/",
+    )
+    assert "https://git.example.com//alice/foo" not in out
+    assert "https://git.example.com/alice/foo" in out
+
+
+def test_activity_without_target_title():
+    data = _data(
+        recent_activity=[
+            GitLabEvent(
+                id=2, action_name="opened",
+                created_at="2026-04-20T11:00:00Z",
+                target_type=None, target_title=None, project_id=None,
+            ),
+        ],
+    )
+    out = render.render(
+        data, about_text="", gitlab_base_url="https://git.example.com",
+    )
+    assert "- 2026-04-20T11:00:00Z — opened" in out
+    assert ":" not in out.split("— opened", 1)[1].splitlines()[0]
