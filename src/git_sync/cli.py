@@ -28,7 +28,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("mirror", help="Run one mirror pass and exit.")
-    sub.add_parser("profile", help="Run one profile generation pass and exit.")
+    profile_parser = sub.add_parser(
+        "profile", help="Run one profile generation pass and exit.",
+    )
+    profile_parser.add_argument(
+        "--refresh-languages",
+        action="store_true",
+        help=(
+            "Clear the cached language LOC counts before running so cloc "
+            "recomputes from scratch."
+        ),
+    )
     sub.add_parser("run", help="Long-running daemon: mirror and profile on schedule.")
     return parser
 
@@ -52,7 +62,10 @@ def main(argv: list[str] | None = None) -> int:
         "profile": _cmd_profile,
         "run": _cmd_run,
     }
-    return dispatch[args.command](cfg, dry_run=args.dry_run)
+    extra: dict = {}
+    if args.command == "profile":
+        extra["refresh_languages"] = args.refresh_languages
+    return dispatch[args.command](cfg, dry_run=args.dry_run, **extra)
 
 
 def _cmd_mirror(cfg: config.Config, *, dry_run: bool) -> int:
@@ -91,7 +104,9 @@ def _cmd_mirror(cfg: config.Config, *, dry_run: bool) -> int:
     return 1 if result.failures else 0
 
 
-def _cmd_profile(cfg: config.Config, *, dry_run: bool) -> int:
+def _cmd_profile(
+    cfg: config.Config, *, dry_run: bool, refresh_languages: bool = False,
+) -> int:
     from .clients.github import GitHubClient
     from .clients.gitlab import GitLabClient
     from .profile.runner import ProfileRunner
@@ -99,6 +114,10 @@ def _cmd_profile(cfg: config.Config, *, dry_run: bool) -> int:
     logger = log.get("git_sync.profile")
     logger.info("profile pass starting%s", " (dry-run)" if dry_run else "")
     current = state.load(cfg.paths.state)
+    if refresh_languages:
+        logger.info("clearing cached language stats (--refresh-languages)")
+        current.profile.language_cache = {}
+        current.profile.language_cache_utc = None
     runner = ProfileRunner(
         gitlab_client=GitLabClient(cfg.gitlab.url, cfg.gitlab.token),
         gitlab_url=cfg.gitlab.url,

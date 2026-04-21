@@ -77,13 +77,15 @@ def test_mirror_subcommand_dispatches(cfg_path, monkeypatch):
 def test_profile_subcommand_dispatches(cfg_path, monkeypatch):
     calls: dict = {}
 
-    def fake(cfg, *, dry_run):
+    def fake(cfg, *, dry_run, refresh_languages=False):
         calls["dry_run"] = dry_run
+        calls["refresh"] = refresh_languages
         return 0
 
     monkeypatch.setattr(cli, "_cmd_profile", fake)
     assert cli.main(["--config", str(cfg_path), "profile"]) == 0
     assert calls["dry_run"] is False
+    assert calls["refresh"] is False
 
 
 def test_run_subcommand_dispatches(cfg_path, monkeypatch):
@@ -188,6 +190,45 @@ def test_cmd_profile_returns_1_on_failure(cfg_path, monkeypatch):
     monkeypatch.setattr("git_sync.profile.runner.ProfileRunner", FakeRunner)
     cfg = config.load(cfg_path)
     assert cli._cmd_profile(cfg, dry_run=False) == 1
+
+
+def test_cmd_profile_refresh_languages_clears_cache(cfg_path, monkeypatch):
+    captured: dict = {}
+
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            captured["state"] = kwargs["state"]
+
+        def run(self, *, dry_run):
+            return ProfileResult()
+
+    monkeypatch.setattr("git_sync.profile.runner.ProfileRunner", FakeRunner)
+    cfg = config.load(cfg_path)
+
+    # Seed cache on disk so we can verify it's cleared before runner.run() sees it.
+    from git_sync import state as state_mod
+    seeded = state_mod.State()
+    seeded.profile.language_cache = {"C": 12345}
+    seeded.profile.language_cache_utc = "2026-04-19T12:00:00+00:00"
+    state_mod.save(cfg.paths.state, seeded)
+
+    cli._cmd_profile(cfg, dry_run=False, refresh_languages=True)
+
+    # The State passed to the runner should have an empty cache now.
+    assert captured["state"].profile.language_cache == {}
+    assert captured["state"].profile.language_cache_utc is None
+
+
+def test_profile_subcommand_parses_refresh_languages(cfg_path, monkeypatch):
+    captured: dict = {}
+
+    def fake(cfg, *, dry_run, refresh_languages=False):
+        captured["refresh"] = refresh_languages
+        return 0
+
+    monkeypatch.setattr(cli, "_cmd_profile", fake)
+    cli.main(["--config", str(cfg_path), "profile", "--refresh-languages"])
+    assert captured["refresh"] is True
 
 
 def test_cmd_profile_dry_run_does_not_save(cfg_path, monkeypatch):
